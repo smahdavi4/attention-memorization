@@ -6,7 +6,7 @@ import torch.nn as nn
 
 class BaselineAttention(nn.Module):
     def __init__(
-            self, input_dim, n_classes, d_model, num_heads,
+            self, input_dim, n_classes, d_model, num_heads, dh
     ):
         super().__init__()
         self.name = 'baseline-attention'
@@ -17,7 +17,7 @@ class BaselineAttention(nn.Module):
         self.num_heads = num_heads
         self.pos_enc = SinPositionalEncoding(d_model, max_len=8192)
         self.attention = CustomAttention(
-            embed_dim=d_model, num_heads=num_heads, batch_first=True, dv=1,
+            embed_dim=d_model, num_heads=num_heads, batch_first=True, dv=1, dh=dh,
             do=d_model, linear_attention=False
         )
         self.decoder = nn.Linear(d_model, n_classes)
@@ -32,23 +32,24 @@ class BaselineAttention(nn.Module):
         mask[:, 0] = 1  # No attention to the first token
         out = self.embedding(X)
         out = self.pos_enc(out)
-        out, _ = self.attention(out, out, out, attn_mask=mask)
+        out, attn_weights = self.attention(out, out, out, attn_mask=mask)
         out = self.decoder(out)
-        return out
+        return out, {'attn_weights': attn_weights}
 
 
 class CustomAttention(nn.Module):
-    def __init__(self, embed_dim, num_heads, batch_first, dv=None, do=None, linear_attention=True) -> None:
+    def __init__(self, embed_dim, num_heads, batch_first, dh=None, dv=None, do=None, linear_attention=True) -> None:
         super().__init__()
         assert batch_first
         # assert num_heads == 1, "Only one head is supported!"
         self.dv = dv if dv is not None else embed_dim // num_heads
         self.do = do if do is not None else embed_dim
+        self.dh = dh if dh is not None else embed_dim
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.linear_attention = linear_attention
-        self.Wq = nn.Parameter(torch.empty((num_heads, embed_dim, embed_dim), ))
-        self.Wk = nn.Parameter(torch.empty((num_heads, embed_dim, embed_dim), ))
+        self.Wq = nn.Parameter(torch.empty((num_heads, embed_dim, self.dh), ))
+        self.Wk = nn.Parameter(torch.empty((num_heads, embed_dim, self.dh), ))
         self.Wv = nn.Parameter(torch.empty((num_heads, embed_dim, self.dv), ))
         self.Wo = nn.Parameter(torch.empty((num_heads * self.dv, self.do), ))
 
@@ -65,16 +66,19 @@ class CustomAttention(nn.Module):
         b, n, d = query.shape
         if attn_mask is not None:
             assert attn_mask.shape == (n, n)
-            attn_mask = attn_mask[None, None, :, :].float()
+            attn_mask = attn_mask[None, None, :, :].bool()
         else:
             attn_mask = 0.0  # Attend to all nodes
         Q = query[:, None, ...] @ self.Wq[None, ...]
         K = key[:, None, ...] @ self.Wk[None, ...]
         V = value[:, None, ...] @ self.Wv[None, ...]
-        QK = (Q @ torch.transpose(K, 2, 3)) * (1 - attn_mask) / math.sqrt(d)  # [b, h, n, n]
+        QKT = (Q @ torch.transpose(K, 2, 3)) / math.sqrt(d)  # [b, h, n, n]
         if not self.linear_attention:
+            mask = torch.zeros_like(attn_mask, dtype=torch.float32).masked_fill(attn_mask, float('-inf'))
+            QK = QKT + mask
             attn_weights = torch.softmax(QK, dim=-1)
         else:
+            QK = QKT * (1 - attn_mask.float())
             attn_weights = QK
         QKV = attn_weights @ V  # [b, h, n, d // h]
         output = torch.transpose(QKV, 1, 2).reshape(b, n, self.num_heads * self.dv)  # [b, n, d]

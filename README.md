@@ -14,7 +14,7 @@ In order to reproduce the experiments, you need to run the bash file named 'repr
 bash reproduce.sh
 ```
 
-Note that each experiment in reproduce.sh is run for only one seed. Running for 6 seeds takes approximately 10 GPU days using a V100 GPU.
+Note that each experiment in reproduce.sh is run for only one seed. Running for 6 seeds takes approximately 20 GPU days using a V100 GPU.
 
 For the ViT/BERT/GPT2 analysis, please refer to the notebooks in the `analysis` directory.
 
@@ -23,7 +23,11 @@ For the ViT/BERT/GPT2 analysis, please refer to the notebooks in the `analysis` 
 Please consider citing our paper if you use this code in your research work:
 
 ```
-@article{
+@article{mahdavi2023memorization,
+  title={Memorization Capacity of Multi-Head Attention in Transformers},
+  author={Mahdavi, Sadegh and Liao, Renjie and Thrampoulidis, Christos},
+  journal={arXiv preprint arXiv:2306.02010},
+  year={2023}
 }
 ```
 

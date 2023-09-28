@@ -1,7 +1,7 @@
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import random_split
 
-from task_datasets import RandomDataset
+from task_datasets import RandomDataset, RandomWikiDataset
 import torch.nn.functional as F
 
 

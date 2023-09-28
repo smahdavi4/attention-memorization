@@ -8,12 +8,13 @@ import numpy as np
 from absl import app
 from torch.utils.data import DataLoader
 import wandb
-from gnn_models import BaselineAttention
+from attn_models import BaselineAttention
 from ml_collections.config_dict import ConfigDict
 from ml_collections import config_flags
 
-from tasks import RandomTask
+from tasks import RandomTask 
 from trainers import Trainer, TrainerConfig
+import analysis
 
 os.environ["WANDB_MODE"] = "dryrun"
 
@@ -25,6 +26,7 @@ _CONFIG = config_flags.DEFINE_config_dict(
         log_prefix='test',
         run_id="",
         d_model=64,
+        dh=0,
         train_size=100_000,
         batch_size=256,
         train_steps=None,
@@ -45,6 +47,7 @@ _CONFIG = config_flags.DEFINE_config_dict(
         model_args=dict(
             num_heads=20,
         ),
+        include_analysis=False, # Include softmax head saturation analysis
         seed=42,
         early_stop=True,
         device='cuda',
@@ -72,7 +75,7 @@ def run(cfg):
             context_type=cfg.task_args.context_type,
         )
         model = BaselineAttention(
-            input_dim=task.n_dims, n_classes=task.n_classes, d_model=cfg.d_model,
+            input_dim=task.n_dims, n_classes=task.n_classes, d_model=cfg.d_model, dh=cfg.dh if cfg.dh > 0 else None,
             num_heads=cfg.model_args.num_heads,
         )
     else:
@@ -98,6 +101,11 @@ def run(cfg):
     )
     trainer.train(train_dataloader=train_loader, val_dataloader=train_loader_test)
     trainer.load_best_checkpoint()
+
+    if cfg.include_analysis:
+        save_dir = os.path.join(cfg.data_dir, 'analysis', cfg.run_id)
+        np_output_path = analysis.analyze_attention(trainer, train_loader_test, save_dir=save_dir)
+        wandb_run.save(np_output_path)
     mem_loss, mem_acc = trainer.evaluate_dataloader(train_loader_test)
     wandb_run.log(
         {f"mem_loss/{model.name}": mem_loss, f"mem_acc/{model.name}": mem_acc}, step=cfg.train_steps

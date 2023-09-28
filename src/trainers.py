@@ -43,7 +43,7 @@ class Trainer:
         for step, batch in tqdm(self._infinite_data_generator(train_dataloader, self.config.train_steps), total=self.config.train_steps):
             self.model.train()
             with torch.cuda.amp.autocast(enabled=self.config.mixed_precision, dtype=torch.float16):
-                micro_batch_loss, _ = self._evaluate_batch(*batch)
+                micro_batch_loss, _, _ = self._evaluate_batch(*batch)
                 backward_loss = micro_batch_loss / self.config.micro_batch_accumulation
 
             grad_scaler.scale(backward_loss).backward()
@@ -83,7 +83,7 @@ class Trainer:
         self.model.eval()
         losses, accs = [], []
         for x, y in dataloader:
-            loss, acc = self._evaluate_batch(x, y)
+            loss, acc, _ = self._evaluate_batch(x, y)
             losses.extend([loss.item()] * len(x))
             accs.extend([acc.item()] * len(x))
         return sum(losses) / len(losses), sum(accs) / len(accs)
@@ -92,9 +92,9 @@ class Trainer:
         with torch.cuda.amp.autocast(enabled=self.config.mixed_precision, dtype=torch.float16):
             x = x.to(self.device)
             y = y.to(self.device)
-            out = self.model(x, y)
+            out, aux = self.model(x, y)
             loss, acc = self.config.task.compute_loss_acc(out, y)
-        return loss, acc
+        return loss, acc, aux
 
     def _get_optimizers_schedulers(self):
         mini_batch_steps = self.config.train_steps // self.config.micro_batch_accumulation
