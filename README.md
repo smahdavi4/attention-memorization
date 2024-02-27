@@ -1,6 +1,8 @@
-# Memorization Capacity of Multi-Head Attention in Transformers
+# (ICLR 2024) Memorization Capacity of Multi-Head Attention in Transformers
 
-This is the code to "Memorization Capacity of Multi-Head Attention in Transformers".
+This is the official code repository for the paper [Memorization Capacity of Multi-Head Attention in Transformers](https://openreview.net/forum?id=MrR3rMxqqv).
+
+## Reproducing the Experiments
 
 First, install the required libraries:
 
@@ -23,11 +25,13 @@ For the ViT/BERT/GPT2 analysis, please refer to the notebooks in the `analysis` 
 Please consider citing our paper if you use this code in your research work:
 
 ```
-@article{mahdavi2023memorization,
-  title={Memorization Capacity of Multi-Head Attention in Transformers},
-  author={Mahdavi, Sadegh and Liao, Renjie and Thrampoulidis, Christos},
-  journal={arXiv preprint arXiv:2306.02010},
-  year={2023}
+@inproceedings{
+mahdavi2024memorization,
+title={Memorization Capacity of Multi-Head Attention in Transformers},
+author={Sadegh Mahdavi and Renjie Liao and Christos Thrampoulidis},
+booktitle={The Twelfth International Conference on Learning Representations},
+year={2024},
+url={https://openreview.net/forum?id=MrR3rMxqqv}
 }
 ```
 
